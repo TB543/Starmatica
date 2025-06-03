@@ -1,0 +1,267 @@
+// FastNoiseLite Shader Implementation
+// Based on the FastNoiseLite library by Jordan Peck
+// https://github.com/Auburn/FastNoiseLite
+// Licensed under the MIT License
+
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// variables to be passed to the shader
+float3 origin;
+float3 xAxis;
+float3 yAxis;
+int detail;
+float radius;
+int seed;
+
+// variabables to be used by terrain generation
+static const int octaves = 5; // how many layers of noise to use - more layers = more detail
+static const float frequency = 3.0; // the zoom level of the noise - lower values = more zoomed out hills
+static const float lacunarity = 2.0; // how much to increase the frequency of each layer - higher values = closer 
+static const float gain = 0.45; // how much to decrease the amplitude of each layer - higher values = sharper 
+static const float amplitude = 500.0; // how much to scale the height of the terrain - higher values = taller 
+static const float weight = 0.5; // how much to decrease the amplitude of each layer - lower values = smoother transition ie smoother plains, exaggerated mountains
+
+// buffers to be used by the shader
+RWStructuredBuffer<float3> points;
+RWStructuredBuffer<int> triangles;
+
+// gradients for the simplex noise algorithm
+static const float Gradients3D[256] =
+{
+    0, 1, 1, 0,  0,-1, 1, 0,  0, 1,-1, 0,  0,-1,-1, 0,
+    1, 0, 1, 0, -1, 0, 1, 0,  1, 0,-1, 0, -1, 0,-1, 0,
+    1, 1, 0, 0, -1, 1, 0, 0,  1,-1, 0, 0, -1,-1, 0, 0,
+    0, 1, 1, 0,  0,-1, 1, 0,  0, 1,-1, 0,  0,-1,-1, 0,
+    1, 0, 1, 0, -1, 0, 1, 0,  1, 0,-1, 0, -1, 0,-1, 0,
+    1, 1, 0, 0, -1, 1, 0, 0,  1,-1, 0, 0, -1,-1, 0, 0,
+    0, 1, 1, 0,  0,-1, 1, 0,  0, 1,-1, 0,  0,-1,-1, 0,
+    1, 0, 1, 0, -1, 0, 1, 0,  1, 0,-1, 0, -1, 0,-1, 0,
+    1, 1, 0, 0, -1, 1, 0, 0,  1,-1, 0, 0, -1,-1, 0, 0,
+    0, 1, 1, 0,  0,-1, 1, 0,  0, 1,-1, 0,  0,-1,-1, 0,
+    1, 0, 1, 0, -1, 0, 1, 0,  1, 0,-1, 0, -1, 0,-1, 0,
+    1, 1, 0, 0, -1, 1, 0, 0,  1,-1, 0, 0, -1,-1, 0, 0,
+    0, 1, 1, 0,  0,-1, 1, 0,  0, 1,-1, 0,  0,-1,-1, 0,
+    1, 0, 1, 0, -1, 0, 1, 0,  1, 0,-1, 0, -1, 0,-1, 0,
+    1, 1, 0, 0, -1, 1, 0, 0,  1,-1, 0, 0, -1,-1, 0, 0,
+    1, 1, 0, 0,  0,-1, 1, 0, -1, 1, 0, 0,  0,-1,-1, 0
+};
+
+/*
+* Projects a point on the unit cube to a point on the sphere using the
+* cube-to-sphere projection algorithm. This ensures that the vertices are
+* evenly distributed across the surface of the sphere.
+*
+* @param p The point on the unit cube to be projected.
+* @return The projected point on the sphere.
+*/
+float3 project(float3 p)
+{
+    float x2 = p.x * p.x;
+    float y2 = p.y * p.y;
+    float z2 = p.z * p.z;
+    
+    float x = p.x * sqrt(1 - (y2 / 2) - (z2 / 2) + ((y2 * z2) / 3));
+    float y = p.y * sqrt(1 - (z2 / 2) - (x2 / 2) + ((z2 * x2) / 3));
+    float z = p.z * sqrt(1 - (x2 / 2) - (y2 / 2) + ((x2 * y2) / 3));
+            
+    return normalize(float3(x, y, z));
+}
+
+/*
+* adjusts the point based on the frequency to create a more organic shape.
+*
+* @param p The point to be transformed.
+* @return The transformed point based on the frequency.
+*/
+float3 transform(float3 p)
+{
+    p *= frequency;
+    float r = (p.x + p.y + p.z) * (2.0 / 3.0);
+    return float3(r - p.x, r - p.y, r - p.z);
+}
+
+/*
+* calculates the bounding value based on the frequency and detail level.
+*
+* @return The bounding value used to scale the fractal noise.
+*/
+float bounding()
+{
+    float absGain = abs(gain);
+    float amp = absGain;
+    float ampFractal = 1.0;
+    for (int i = 1; i < octaves; i++)
+    {
+        ampFractal += amp;
+        amp *= absGain;
+    }
+    return 1 / ampFractal;
+}
+
+/*
+* generates a hash value based on the seed and coordinates.
+*/
+float GradCoord(int seed, int xPrimed, int yPrimed, int zPrimed, float xd, float yd, float zd)
+{
+    int hash = seed ^ xPrimed ^ yPrimed ^ zPrimed;
+    hash *= 0x27d4eb2d;
+    hash ^= hash >> 15;
+    hash &= 63 << 2;
+
+    float xg = Gradients3D[hash];
+    float yg = Gradients3D[hash | 1];
+    float zg = Gradients3D[hash | 2];
+
+    return xd * xg + yd * yg + zd * zg;
+}
+
+/*
+* retrieves the noise value based on the seed and point.
+*
+* @returns The noise value for the given seed and point.
+*/
+float getNoise(int simplexSeed, float3 p)
+{
+    int i = round(p.x);
+    int j = round(p.y);
+    int k = round(p.z);
+    float x0 = (float) (p.x - i);
+    float y0 = (float) (p.y - j);
+    float z0 = (float) (p.z - k);
+
+    int xNSign = (int) (-1.0 - x0) | 1;
+    int yNSign = (int) (-1.0 - y0) | 1;
+    int zNSign = (int) (-1.0 - z0) | 1;
+
+    float ax0 = xNSign * -x0;
+    float ay0 = yNSign * -y0;
+    float az0 = zNSign * -z0;
+
+    i *= 501125321;
+    j *= 1136930381;
+    k *= 1720413743;
+
+    float value = 0;
+    float a = (0.6f - x0 * x0) - (y0 * y0 + z0 * z0);
+
+    for (int l = 0;; l++)
+    {
+        if (a > 0)
+        {
+            value += (a * a) * (a * a) * GradCoord(simplexSeed, i, j, k, x0, y0, z0);
+        }
+
+        if (ax0 >= ay0 && ax0 >= az0)
+        {
+            float b = a + ax0 + ax0;
+            if (b > 1)
+            {
+                b -= 1;
+                value += (b * b) * (b * b) * GradCoord(simplexSeed, i - xNSign * 501125321, j, k, x0 + xNSign, y0, z0);
+            }
+        }
+        else if (ay0 > ax0 && ay0 >= az0)
+        {
+            float b = a + ay0 + ay0;
+            if (b > 1)
+            {
+                b -= 1;
+                value += (b * b) * (b * b) * GradCoord(simplexSeed, i, j - yNSign * 1136930381, k, x0, y0 + yNSign, z0);
+            }
+        }
+        else
+        {
+            float b = a + az0 + az0;
+            if (b > 1)
+            {
+                b -= 1;
+                value += (b * b) * (b * b) * GradCoord(simplexSeed, i, j, k - zNSign * 1720413743, x0, y0, z0 + zNSign);
+            }
+        }
+
+        if (l == 1)
+            break;
+
+        ax0 = 0.5 - ax0;
+        ay0 = 0.5 - ay0;
+        az0 = 0.5 - az0;
+
+        x0 = xNSign * ax0;
+        y0 = yNSign * ay0;
+        z0 = zNSign * az0;
+
+        a += (0.75 - ax0) - (ay0 + az0);
+
+        i += (xNSign >> 1) & 501125321;
+        j += (yNSign >> 1) & 1136930381;
+        k += (zNSign >> 1) & 1720413743;
+
+        xNSign = -xNSign;
+        yNSign = -yNSign;
+        zNSign = -zNSign;
+
+        simplexSeed = ~simplexSeed;
+    }
+
+    return value * 32.69428253173828125;
+}
+
+/*
+* generates a fractal Brownian motion (FBM) value based on the input point.
+*
+* @param p The input point for which the FBM value is calculated.
+* @return The FBM value for the input point.
+*/
+float fractialFBM(float3 p)
+{
+    int fractalSeed = seed;
+    float sum = 0;
+    float amp = bounding();
+
+    for (int i = 0; i < octaves; i++)
+    {
+        float noise = getNoise(fractalSeed++, p);
+        sum += noise * amp;
+        amp *= lerp(1.0, (noise + 1) * 0.5, weight);
+
+        p *= lacunarity;
+        amp *= gain;
+    }
+
+    return sum;
+}
+
+/*
+* The main compute shader function that generates points on the sphere.
+*
+* @param id The thread ID, which determines the position of the point to be generated.
+*/
+[numthreads(8, 8, 1)]
+void CSMain(uint3 id : SV_DispatchThreadID)
+{
+    // Ensure the thread ID is within the bounds of the detail level
+    if (id.x >= (uint)detail || id.y >= (uint)detail)
+        return;
+    
+    // Calculate the point position based on the thread ID
+    int vertexIndex = id.x + id.y * (uint)detail;
+    int triangleIndex = (id.x + id.y * (uint)(detail - 1)) * 6;
+    float3 p = origin + (id.x * xAxis / (detail - 1)) + (id.y * yAxis / (detail - 1));
+    p = project(p);
+    points[vertexIndex] = p * (radius + (fractialFBM(transform(p)) * amplitude));
+    
+    // calculate the triangle indices for the current vertex
+    if (id.x < (uint)detail - 1 && id.y < (uint)detail - 1)
+    {
+        // first triangle
+        triangles[triangleIndex + 0] = vertexIndex;
+        triangles[triangleIndex + 1] = vertexIndex + detail + 1;
+        triangles[triangleIndex + 2] = vertexIndex + detail;
+ 
+         // second triangle 
+        triangles[triangleIndex + 3] = vertexIndex;
+        triangles[triangleIndex + 4] = vertexIndex + 1;
+        triangles[triangleIndex + 5] = vertexIndex + detail + 1;
+    }
+}
