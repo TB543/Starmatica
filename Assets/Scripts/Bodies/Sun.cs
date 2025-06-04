@@ -3,30 +3,31 @@ using UnityEngine;
 /*
  * a class to represent a sun in the universe.
  */
-public class Sun : MonoBehaviour
+public class Sun : Body
 {
     // fields to stored in the Unity editor
-    [SerializeField] int minPlanets;
-    [SerializeField] int maxPlanets;
-    [SerializeField] GameObject planetPrefab;
+    [SerializeField] int minOrbitingBodies;
+    [SerializeField] int maxOrbitingBodies;
+    [SerializeField] GameObject orbitingBodyPrefab;
 
     // field to store the planets orbiting the sun
-    public GameObject[] planets { get; private set; }
+    public GameObject[] orbitingBodies { get; private set; }
 
     /*
      * called when the script instance is being loaded.
      * creates the planets orbiting the sun.
      */
-    private void Awake()
+    protected override void Awake()
     {
         // initalizes the sun
-        int numPlanets = Random.Range(minPlanets, maxPlanets + 1);
-        planets = new GameObject[numPlanets];
+        base.Awake();
+        int orbitingBodyCount = Random.Range(minOrbitingBodies, maxOrbitingBodies + 1);
+        orbitingBodies = new GameObject[orbitingBodyCount];
 
         // generates the planets orbiting the sun
-        for (int i = 0; i < numPlanets; i++) {
-            GameObject planet = Instantiate(planetPrefab, transform);
-            planets[i] = planet;
+        for (int i = 0; i < orbitingBodyCount; i++) {
+            GameObject orbitingBody = Instantiate(orbitingBodyPrefab, transform);
+            orbitingBodies[i] = orbitingBody;
         }
     }
 }

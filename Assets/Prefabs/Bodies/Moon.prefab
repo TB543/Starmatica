@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2650793020816962723}
   - component: {fileID: 8396861183103512204}
+  - component: {fileID: -8575520417601696934}
   m_Layer: 0
   m_Name: Moon
   m_TagString: Untagged
@@ -44,3 +45,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 31c7240e919a5a04598ddf582656f0be, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  minRadius: 0
+  maxRadius: 0
+--- !u!114 &-8575520417601696934
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7752022627351078627}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a5f52f9e8b49d9d4397f69ec1f3d9379, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _settings: {fileID: 11400000, guid: c759b34cbab6f9342a4564503cd9cdb0, type: 2}
+  _terrainShader: {fileID: 0}

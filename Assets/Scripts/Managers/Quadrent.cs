@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /*
- * a class to generate a quadrant in the universe.
+ * a class to generate and manage a quadrant in the universe.
  * 
  * This script generates a quadrant with a random number of suns, planets, and moons
  * based on the settings defined in the Unity editor.
@@ -22,7 +22,7 @@ public class Quadrant : MonoBehaviour
     private void Start()
     {
         // loads the quadrant data
-        int seed = Globals.hashQuadrent();
+        int seed = Variables.hashQuadrent();
         Random.InitState(seed);
         int numSuns = Random.Range(minSuns, maxSuns + 1);
         suns = new GameObject[numSuns];

@@ -18,14 +18,20 @@ public class CameraMovement : MonoBehaviour
     private float yaw = 0;
     private float pitch = 0;
 
-    // called when the script instance is being loaded
+    /*
+     * Awake is called when the script instance is being loaded.
+     * It initializes the InputActions for movement and looking.
+     */
     private void Awake()
     {
         move = InputSystem.actions.FindAction("Move");
         look = InputSystem.actions.FindAction("Look");
     }
 
-    // called on each frame
+    /*
+     * Start is called before the first frame update.
+     * It enables the InputActions for movement and looking.
+     */
     private void Update()
     {
         // handles movement actions

@@ -9,7 +9,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1272029470465370147}
-  - component: {fileID: 8982286267836648990}
   - component: {fileID: 2086952450955861148}
   - component: {fileID: -4159492952395346840}
   m_Layer: 0
@@ -34,29 +33,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &8982286267836648990
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2073702629757266884}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 59cebaa61c7065d4e8cbdbfb5d1ab60a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  maxSize: 2000
-  chunkPrefab: {fileID: 2073702629757266884}
-  terrainShader: {fileID: 7200000, guid: 78648c9dbf7d3cd46b6990ad58da3fa7, type: 3}
-  LOD1Threshold: 16000
-  LOD2Threshold: 7000
-  LOD3Threshold: 3500
-  LOD4Threshold: 2000
-  LOD1Detail: 8
-  LOD2Detail: 32
-  LOD3Detail: 128
-  LOD4Detail: 256
 --- !u!33 &2086952450955861148
 MeshFilter:
   m_ObjectHideFlags: 0

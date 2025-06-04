@@ -3,10 +3,10 @@ using UnityEngine;
 /*
  * a class to hold global variables and useful functions that can be accessed from other scripts
  */
-public class Globals : MonoBehaviour
+public class Variables : MonoBehaviour
 {
     // fields accessible from other scripts
-    public static Globals instance { get; private set; }
+    public static Variables instance { get; private set; }
     public static int universeSeed;
     public static Vector2Int loadedQuadrantCoords;
 
@@ -46,12 +46,4 @@ public class Globals : MonoBehaviour
             return (result ^ loadedQuadrantCoords.y) * fnvPrime;
         }
     }
-
-    // terrain generation settings
-    public const int octaves = 5;  // how many layers of noise to use - more layers = more detail
-    public const float frequency = 3f;  // the zoom level of the noise - lower values = more zoomed out hills
-    public const float lacunarity = 2.0f;  // how much to increase the frequency of each layer - higher values = closer hills
-    public const float gain = 0.45f;  // how much to decrease the amplitude of each layer - higher values = sharper hills
-    public const float amplitude = 500f;  // how much to scale the height of the terrain - higher values = taller hills
-    public const float weight = 0.5f;  // how much to decrease the amplitude of each layer - lower values = smoother transition ie smoother plains, exaggerated mountains
 }
