@@ -6,11 +6,17 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel CSMain
 
+// struct for chunk data
+struct ChunkData
+{
+    float3 origin;
+    float3 xAxis;
+    float3 yAxis;
+};
+
 // variables to be passed to the shader
-float3 origin;
-float3 xAxis;
-float3 yAxis;
 int detail;
+int numChunks;
 float radius;
 int seed;
 
@@ -25,6 +31,7 @@ static const float weight = 0.5; // how much to decrease the amplitude of each l
 // buffers to be used by the shader
 RWStructuredBuffer<float3> points;
 RWStructuredBuffer<int> triangles;
+RWStructuredBuffer<ChunkData> chunks;
 
 // gradients for the simplex noise algorithm
 static const float Gradients3D[256] =
@@ -239,29 +246,30 @@ float fractialFBM(float3 p)
 */
 [numthreads(8, 8, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID)
-{
+{   
     // Ensure the thread ID is within the bounds of the detail level
-    if (id.x >= (uint)detail || id.y >= (uint)detail)
+    if (id.x >= (uint) detail || id.y >= (uint) detail || id.z >= (uint) numChunks)
         return;
     
     // Calculate the point position based on the thread ID
-    int vertexIndex = id.x + id.y * (uint)detail;
-    int triangleIndex = (id.x + id.y * (uint)(detail - 1)) * 6;
-    float3 p = origin + (id.x * xAxis / (detail - 1)) + (id.y * yAxis / (detail - 1));
+    int localVertexIndex = (id.x + id.y * (uint) detail);
+    int globalVertexIndex = localVertexIndex + (id.z * detail * detail);
+    int triangleIndex = ((id.x + id.y * (uint) (detail - 1)) * 6) + (id.z * (detail - 1) * (detail - 1) * 6);
+    float3 p = chunks[id.z].origin + (id.x * chunks[id.z].xAxis / (detail - 1)) + (id.y * chunks[id.z].yAxis / (detail - 1));
     p = project(p);
-    points[vertexIndex] = p * (radius + (fractialFBM(transform(p)) * amplitude));
+    points[globalVertexIndex] = p * (radius + (fractialFBM(transform(p)) * amplitude));
     
     // calculate the triangle indices for the current vertex
     if (id.x < (uint)detail - 1 && id.y < (uint)detail - 1)
     {
         // first triangle
-        triangles[triangleIndex + 0] = vertexIndex;
-        triangles[triangleIndex + 1] = vertexIndex + detail + 1;
-        triangles[triangleIndex + 2] = vertexIndex + detail;
+        triangles[triangleIndex + 0] = localVertexIndex;
+        triangles[triangleIndex + 1] = localVertexIndex + detail + 1;
+        triangles[triangleIndex + 2] = localVertexIndex + detail;
  
          // second triangle 
-        triangles[triangleIndex + 3] = vertexIndex;
-        triangles[triangleIndex + 4] = vertexIndex + 1;
-        triangles[triangleIndex + 5] = vertexIndex + detail + 1;
+        triangles[triangleIndex + 3] = localVertexIndex;
+        triangles[triangleIndex + 4] = localVertexIndex + 1;
+        triangles[triangleIndex + 5] = localVertexIndex + detail + 1;
     }
 }

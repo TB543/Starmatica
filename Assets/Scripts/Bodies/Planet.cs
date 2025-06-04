@@ -3,7 +3,7 @@ using UnityEngine;
 /*
  * a class to represent a planet in the universe.
  */
-public class Planet : Sun
+public class Planet : ParentBody
 {
     protected override void Awake()
     {

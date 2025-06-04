@@ -22,8 +22,7 @@ public class Quadrant : MonoBehaviour
     private void Start()
     {
         // loads the quadrant data
-        int seed = Variables.hashQuadrent();
-        Random.InitState(seed);
+        Random.InitState(Variables.hashQuadrent());
         int numSuns = Random.Range(minSuns, maxSuns + 1);
         suns = new GameObject[numSuns];
 

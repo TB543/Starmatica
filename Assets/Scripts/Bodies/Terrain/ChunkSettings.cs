@@ -1,6 +1,6 @@
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "ChunkSettings", menuName = "Scriptable Objects/ChunkSettings")]
+[System.Serializable]
 public class ChunkSettings : ScriptableObject
 {
     public float LODThreshold;

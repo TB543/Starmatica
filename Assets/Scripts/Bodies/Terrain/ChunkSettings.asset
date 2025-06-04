@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: ChunkSettings
   m_EditorClassIdentifier: 
   LODThreshold: 0.4
-  maxChunkSize: 1000
-  chunkResolution: 2
+  maxChunkSize: 200
+  chunkResolution: 8
   chunkPrefab: {fileID: 2073702629757266884, guid: 2e55f67683ea68f4dadfe5ea3b591d6a, type: 3}

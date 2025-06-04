@@ -3,30 +3,11 @@ using UnityEngine;
 /*
  * a class to hold global variables and useful functions that can be accessed from other scripts
  */
-public class Variables : MonoBehaviour
+public class Variables
 {
     // fields accessible from other scripts
-    public static Variables instance { get; private set; }
-    public static int universeSeed;
+    public static int universeSeed = Random.Range(int.MinValue, int.MaxValue);
     public static Vector2Int loadedQuadrantCoords;
-
-    /*
-     * Awake is called when the script instance is being loaded.
-     * It initializes the global variables.
-     */
-    private void Awake()
-    {
-        // ensures that only one instance of Globals exists in the scene
-        if (instance != null) {
-            Destroy(gameObject);
-            return;
-        }
-
-        // sets the instance to this object
-        instance = this;
-        universeSeed = Random.Range(int.MinValue, int.MaxValue);
-        DontDestroyOnLoad(gameObject);
-    }
 
     /*
      * generates a random number based on the given values for the

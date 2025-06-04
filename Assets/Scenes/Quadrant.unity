@@ -130,7 +130,7 @@ GameObject:
   - component: {fileID: 1275458514}
   - component: {fileID: 1275458515}
   m_Layer: 0
-  m_Name: Quadrent
+  m_Name: Quadrant
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -166,50 +166,6 @@ MonoBehaviour:
   minSuns: 1
   maxSuns: 1
   sunPrefab: {fileID: 1012220126648347082, guid: 0213eaaa630a28040901f22f5eb04f6c, type: 3}
---- !u!1 &1341333148
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1341333150}
-  - component: {fileID: 1341333149}
-  m_Layer: 0
-  m_Name: Variables
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1341333149
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1341333148}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 38c733ce574a3614987b4233d2a89f35, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
---- !u!4 &1341333150
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1341333148}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 16.54954, y: 0, z: 1.01381}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1869843953
 GameObject:
   m_ObjectHideFlags: 0
@@ -321,6 +277,5 @@ MonoBehaviour:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 1341333150}
   - {fileID: 1275458514}
   - {fileID: 1869843956}
