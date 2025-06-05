@@ -64,3 +64,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _settings: {fileID: 11400000, guid: c759b34cbab6f9342a4564503cd9cdb0, type: 2}
   terrainShader: {fileID: 7200000, guid: 78648c9dbf7d3cd46b6990ad58da3fa7, type: 3}
+  LODShader: {fileID: 7200000, guid: 982fa5b46cf4b284aa1f60d9faf80014, type: 3}

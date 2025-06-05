@@ -12,6 +12,9 @@ struct ChunkData
     float3 origin;
     float3 xAxis;
     float3 yAxis;
+    int index; // not used in this shader, used by the chunk manager to identify chunks
+    int isLeaf; // not used in this shader, used by the LOD shader to determine if the chunk is split
+    int canMergeChildren; // not used in this shader, used by the LOD shader to determine if the chunk cam merge
 };
 
 // variables to be passed to the shader

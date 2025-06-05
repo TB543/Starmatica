@@ -5,21 +5,22 @@ using UnityEngine;
  */
 public class Chunk
 {
-    // struct for storing data to pass to the compute shader
-    public struct ChunkData {
+    // struct for storing data to pass to the compute shaders
+    public struct Data {
         public Vector3 origin;  // on the unit cube
         public Vector3 xAxis;  // magnitude is the size of the chunk on the unit cube
         public Vector3 yAxis;
+        public int index;  // index of the chunk in the chunk manager
+        public int isLeaf; // 0 for false 1 for true
+        public int canMergeChildren; // 0 for false 1 for true
     }
 
     // fields for the chunk
-    public ChunkData data { get; private set; }
+    public Data data;
     private ChunkManager chunkManager;
-    private Vector3 center;  // the center of the chunk projected onto the planet
-    private float size;  // adjusted size of the chunk based on the planet's radius
     private GameObject chunkGameObject;
-    private Chunk[] subChunks = new Chunk[4];  // will be set if the chunk is split
-    private float ratio => size / Vector3.Distance(Camera.main.transform.position, chunkManager.transform.position + center);
+    private Chunk[] subChunks = new Chunk[4];
+    private Chunk parent; // will be set by parent chunk
 
     /*
      * Constructor for Chunk.
@@ -30,79 +31,73 @@ public class Chunk
      * @param yAxis The y-axis direction of the chunk.
      * @param chunkManager The manager responsible for handling chunks.
      */
-public Chunk(Vector3 origin, Vector3 xAxis, Vector3 yAxis, ChunkManager chunkManager)
+    public Chunk(Vector3 origin, Vector3 xAxis, Vector3 yAxis, ChunkManager chunkManager)
     {
-        data = new ChunkData {
+        data = new Data {
             origin = origin,
             xAxis = xAxis,
-            yAxis = yAxis
+            yAxis = yAxis,
+            index = chunkManager.allChunkData.Count,
+            isLeaf = 1,
+            canMergeChildren = 1
         };
         this.chunkManager = chunkManager;
-        center = project(origin + (.5f * xAxis) + (.5f * yAxis)) * chunkManager.body.radius;
-        size = xAxis.magnitude * chunkManager.body.radius;
-        chunkGameObject = chunkManager.requestChunk(data);
+        chunkGameObject = chunkManager.requestObj(data);
+        chunkManager.allChunkData.Add(data);
+        chunkManager.allChunks.Add(this);
     }
 
     /*
-     * updates the chunks LOD (Level of Detail) based on the distance from the camera.
-     * splits the chunk if it is too large and needs to be split, or merges it with its parent if it is small enough.
-     */
-    public void updateLOD()
-    {
-        // handle merging of chunks  todo plug LODThreshold into falloff formula so levels of detail are clumped tpgether a bit more        additionally modify compute shader to take 1 call per frame to update every chunk at once
-        if (ratio < chunkManager.settings.LODThreshold) {
-            tryMerge();
-            return;
-        }
-
-        // tries to split and recursively updates the LOD of the sub-chunks
-        trySplit();
-        if (chunkGameObject == null) {
-            foreach (Chunk chunk in subChunks) {
-                chunk.updateLOD();
-            }
-        }
-    }
-
-    /*
-     * Merges the child chunks into a single chunk if they are small enough.
-     * If the chunk has already been merged, it does nothing.
-     * Otherwise, it generates the chunk mesh and returns the sub-chunks to the chunk manager.
+     * determines if the chunk can merge or not. merge conditions are as follows:
+     * all child chunks are leaf nodes
      * 
-     * @param rootCall Indicates if this method is called from the root chunk.
-     *      determines whether to generate the chunk mesh or not.
+     * @return 1 if it can 0 if it cannot
      */
-    private void tryMerge(bool rootCall = true)
+    private int canMergeChildren()
     {
-        // handles when chunk has already been merged
-        if (chunkGameObject != null)
-            return;
+        foreach (Chunk chunk in subChunks)
+            if (chunk.data.isLeaf == 0) return 0;
+        return 1;
+    }
 
+    /*
+     * Merges the child chunks into this chunk
+     */
+    public void merge()
+    {
         // removes the sub-chunks
         foreach (Chunk chunk in subChunks) {
-            chunk.tryMerge(false);
-            chunkManager.returnChunk(chunk.chunkGameObject);
+            chunkManager.returnObj(chunk.chunkGameObject);
+            chunkManager.mergeBuffer.Enqueue(chunk);
         }
 
         // generates the merged chunk mesh
-        if (rootCall) {
-            chunkGameObject = chunkManager.requestChunk(data);
-            subChunks = new Chunk[4];
+        chunkGameObject = chunkManager.requestObj(data);
+        subChunks = new Chunk[4];
+
+        // updates the isLeaf data in the struct
+        Data newData = data;
+        newData.isLeaf = 1;
+        data = newData;
+        chunkManager.allChunkData[data.index] = newData;
+
+        // checks if parent can merge
+        if (parent != null) {
+            newData = parent.data;
+            newData.canMergeChildren = parent.canMergeChildren();
+            parent.data = newData;
+            chunkManager.allChunkData[parent.data.index] = newData;
         }
     }
 
     /*
-     * Splits the chunk into smaller chunks if it is too large.
+     * Splits the chunk into smaller chunks
      * Creates four sub-chunks and initializes them with the appropriate parameters.
      * to be called by leaf chunks that need to be split.
      */
-    private void trySplit()
+    public void split()
     {
-        // handles when chunk does not need to be split
-        if (chunkGameObject == null || size <= chunkManager.settings.maxChunkSize)
-            return;
-
-        // creates the sub-chunks if they do not already exist
+        // splits the chunk
         Vector3 splitXAxis = data.xAxis / 2f;
         Vector3 splitYAxis = data.yAxis / 2f;
         Vector3[] origins = new Vector3[] { Vector3.zero, splitXAxis, splitYAxis, splitXAxis + splitYAxis };
@@ -110,29 +105,25 @@ public Chunk(Vector3 origin, Vector3 xAxis, Vector3 yAxis, ChunkManager chunkMan
         // creates the sub-chunks and initializes them
         for (int i = 0; i < 4; i++) {
             subChunks[i] = new Chunk(data.origin + origins[i], splitXAxis, splitYAxis, chunkManager);
+            subChunks[i].parent = this;
         }
 
         // removes the current chunk's game object and sets it inactive
-        chunkManager.returnChunk(chunkGameObject);
+        chunkManager.returnObj(chunkGameObject);
         chunkGameObject = null;
-    }
 
-    /*
-     * Projects a point on the unit cube to a point on the sphere using the
-     * cube-to-sphere projection algorithm. This ensures that the vertices are
-     * evenly distributed across the surface of the sphere.
-     *
-     * @param point The point on the unit cube to be projected.
-     * @return The projected point on the sphere.
-     */
-    private Vector3 project(Vector3 point)
-    {
-        float x2 = point.x * point.x;
-        float y2 = point.y * point.y;
-        float z2 = point.z * point.z;
-        float x = point.x * Mathf.Sqrt(1f - (y2 / 2f) - (z2 / 2f) + ((y2 * z2) / 3f));
-        float y = point.y * Mathf.Sqrt(1f - (z2 / 2f) - (x2 / 2f) + ((z2 * x2) / 3f));
-        float z = point.z * Mathf.Sqrt(1f - (x2 / 2f) - (y2 / 2f) + ((x2 * y2) / 3f));
-        return new Vector3(x, y, z).normalized;
+        // updates the isLeaf data in the struct
+        Data newData = data;
+        newData.isLeaf = 0;
+        data = newData;
+        chunkManager.allChunkData[data.index] = newData;
+
+        // ensures parent cannot merge without this chunk merging first5
+        if (parent != null) {
+            newData = parent.data;
+            newData.canMergeChildren = 0;
+            parent.data = newData;
+            chunkManager.allChunkData[parent.data.index] = newData;
+        }
     }
 }
