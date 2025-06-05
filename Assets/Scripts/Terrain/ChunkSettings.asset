@@ -12,7 +12,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 016807901d998df428500a08adc374f7, type: 3}
   m_Name: ChunkSettings
   m_EditorClassIdentifier: 
-  LODThreshold: 0.4
-  maxChunkSize: 200
   chunkResolution: 8
   chunkPrefab: {fileID: 2073702629757266884, guid: 2e55f67683ea68f4dadfe5ea3b591d6a, type: 3}

@@ -18,13 +18,18 @@ int numChunks;
 float3 cameraPosition;
 float3 chunkGlobalPosition;
 float radius;
-float LODThreshold;
-float maxChunkSize;
 
 // buffers for passing data to/from the shader
 RWStructuredBuffer<ChunkData> chunks;
 RWStructuredBuffer<int> result;
 RWByteAddressBuffer count; // atomic index count
+
+// constants used for LOD calculations
+static const float maxDetailThreshold = 1000; // chunks under this distance will be rendered at max LOD
+static const float maxChunkSize = 200; // the maximum size of a chunk
+static const float LODThreshold = .4; // relative screen size for chunks for when to split/merge
+static const float falloffPower = 3; // higher values = LOD decreases faster
+static const float falloffDistance = 10000; // how wide the falloff zone is
 
 /*
 * Projects a point on the unit cube to a point on the sphere using the
@@ -64,15 +69,18 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     float size = length(chunks[id.x].xAxis) * radius;
     float ratio = size / dist;
     
+    float blend = saturate((dist - maxDetailThreshold) / (falloffDistance));
+    ratio = pow(ratio, lerp(1.0, falloffPower, blend));
+    
     // merge check
-    if (mode == 0 && chunks[id.x].isLeaf == 0 && chunks[id.x].canMergeChildren == 1 && ratio < LODThreshold) {
+    if (mode == 0 && dist >= maxDetailThreshold && chunks[id.x].isLeaf == 0 && chunks[id.x].canMergeChildren == 1 && ratio < LODThreshold) {
         uint index;
         count.InterlockedAdd(0, 1, index);
         result[index] = chunks[id.x].index;
     }
 
     // split check
-    else if (mode == 1 && chunks[id.x].isLeaf == 1 && ratio >= LODThreshold && size > maxChunkSize) {
+    else if (mode == 1 && chunks[id.x].isLeaf == 1 && (ratio >= LODThreshold || dist < maxDetailThreshold) && size > maxChunkSize) {
         uint index;
         count.InterlockedAdd(0, 1, index);
         result[index] = chunks[id.x].index;

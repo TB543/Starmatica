@@ -12,12 +12,11 @@ using UnityEngine;
 public class ChunkManager : MonoBehaviour
 {
     // fields set in the Unity editor
-    [SerializeField] ChunkSettings _settings;
+    [SerializeField] ChunkSettings settings;
     [SerializeField] ComputeShader terrainShader;
     [SerializeField] ComputeShader LODShader;
 
     // fields for the chunk manager used by the chunk objects
-    public ChunkSettings settings => _settings;
     public Body body { get; private set; }
 
     // various structures used to manage chunks
@@ -50,6 +49,7 @@ public class ChunkManager : MonoBehaviour
      */
     private void Update()
     {
+        float t = Time.realtimeSinceStartup;
         // merges chunks that can merge
         foreach (int i in getLODUpdates(0))
             allChunks[i].merge();
@@ -60,6 +60,8 @@ public class ChunkManager : MonoBehaviour
             allChunks[i].split();
 
         updateMesh();
+
+        print((Time.realtimeSinceStartup - t) * 1000);
     }
 
     /*
@@ -113,8 +115,6 @@ public class ChunkManager : MonoBehaviour
         LODShader.SetVector("cameraPosition", Camera.main.transform.position);
         LODShader.SetVector("chunkGlobalPosition", transform.position);
         LODShader.SetFloat("radius", body.radius);
-        LODShader.SetFloat("LODThreshold", settings.LODThreshold);
-        LODShader.SetFloat("maxChunkSize", settings.maxChunkSize);
 
         // runs the shader and collects the results
         int groups = Mathf.CeilToInt(allChunkData.Count / 64f);
