@@ -1,2 +1,14 @@
 fileFormatVersion: 2
 guid: a5f52f9e8b49d9d4397f69ec1f3d9379
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - chunkPrefab: {fileID: 2073702629757266884, guid: 2e55f67683ea68f4dadfe5ea3b591d6a, type: 3}
+  - terrainShader: {instanceID: 0}
+  - LODShader: {fileID: 7200000, guid: 982fa5b46cf4b284aa1f60d9faf80014, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

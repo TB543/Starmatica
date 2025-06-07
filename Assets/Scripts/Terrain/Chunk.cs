@@ -18,7 +18,7 @@ public class Chunk
     // fields for the chunk
     public Data data;
     private ChunkManager chunkManager;
-    private GameObject chunkGameObject;
+    private GameObject gameObj;
     private Chunk[] subChunks = new Chunk[4];
     private Chunk parent; // will be set by parent chunk
 
@@ -37,14 +37,12 @@ public class Chunk
             origin = origin,
             xAxis = xAxis,
             yAxis = yAxis,
-            index = chunkManager.allChunkData.Count,
+            index = chunkManager.chunkCount,
             isLeaf = 1,
             canMergeChildren = 1
         };
         this.chunkManager = chunkManager;
-        chunkGameObject = chunkManager.requestObj(data);
-        chunkManager.allChunkData.Add(data);
-        chunkManager.allChunks.Add(this);
+        gameObj = chunkManager.requestObj(data);
     }
 
     /*
@@ -67,26 +65,24 @@ public class Chunk
     {
         // removes the sub-chunks
         foreach (Chunk chunk in subChunks) {
-            chunkManager.returnObj(chunk.chunkGameObject);
-            chunkManager.mergeBuffer.Enqueue(chunk);
+            chunkManager.returnObj(chunk.gameObj);
+            chunkManager.queueMerge(chunk);
         }
 
         // generates the merged chunk mesh
-        chunkGameObject = chunkManager.requestObj(data);
+        gameObj = chunkManager.requestObj(data);
         subChunks = new Chunk[4];
 
         // updates the isLeaf data in the struct
         Data newData = data;
         newData.isLeaf = 1;
-        data = newData;
-        chunkManager.allChunkData[data.index] = newData;
+        chunkManager.modifyData(this, newData);
 
         // checks if parent can merge
         if (parent != null) {
             newData = parent.data;
             newData.canMergeChildren = parent.canMergeChildren();
-            parent.data = newData;
-            chunkManager.allChunkData[parent.data.index] = newData;
+            chunkManager.modifyData(parent, newData);
         }
     }
 
@@ -104,26 +100,24 @@ public class Chunk
 
         // creates the sub-chunks and initializes them
         for (int i = 0; i < 4; i++) {
-            subChunks[i] = new Chunk(data.origin + origins[i], splitXAxis, splitYAxis, chunkManager);
+            subChunks[i] = chunkManager.addChunk(data.origin + origins[i], splitXAxis, splitYAxis);
             subChunks[i].parent = this;
         }
 
         // removes the current chunk's game object and sets it inactive
-        chunkManager.returnObj(chunkGameObject);
-        chunkGameObject = null;
+        chunkManager.returnObj(gameObj);
+        gameObj = null;
 
         // updates the isLeaf data in the struct
         Data newData = data;
         newData.isLeaf = 0;
-        data = newData;
-        chunkManager.allChunkData[data.index] = newData;
+        chunkManager.modifyData(this, newData);
 
         // ensures parent cannot merge without this chunk merging first5
         if (parent != null) {
             newData = parent.data;
             newData.canMergeChildren = 0;
-            parent.data = newData;
-            chunkManager.allChunkData[parent.data.index] = newData;
+            chunkManager.modifyData(parent, newData);
         }
     }
 }

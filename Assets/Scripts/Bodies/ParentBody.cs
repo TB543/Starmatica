@@ -10,7 +10,7 @@ public class ParentBody : Body
     [SerializeField] int maxOrbitingBodies;
     [SerializeField] GameObject orbitingBodyPrefab;
 
-    // field to store the planets orbiting the sun
+    // field to store the orbiting
     public GameObject[] orbitingBodies { get; private set; }
 
     /*
@@ -19,14 +19,13 @@ public class ParentBody : Body
      */
     protected override void Awake()
     {
-        // initalizes the sun
+        // initalizes the parent class
         base.Awake();
         int orbitingBodyCount = Random.Range(minOrbitingBodies, maxOrbitingBodies + 1);
         orbitingBodies = new GameObject[orbitingBodyCount];
 
-        // generates the planets orbiting the sun
-        for (int i = 0; i < orbitingBodyCount; i++)
-        {
+        // generates the orbiting planets
+        for (int i = 0; i < orbitingBodyCount; i++) {
             GameObject orbitingBody = Instantiate(orbitingBodyPrefab, transform);
             orbitingBodies[i] = orbitingBody;
         }

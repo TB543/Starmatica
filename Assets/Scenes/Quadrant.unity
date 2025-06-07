@@ -119,6 +119,55 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &31137173
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 31137175}
+  - component: {fileID: 31137174}
+  m_Layer: 0
+  m_Name: BodySpawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &31137174
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 31137173}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e8661c9f2e7fba340bdf90734dd4d317, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  minRadius: 0
+  maxRadius: 0
+  minOrbitingBodies: 1
+  maxOrbitingBodies: 1
+  orbitingBodyPrefab: {fileID: 1012220126648347082, guid: 0213eaaa630a28040901f22f5eb04f6c, type: 3}
+--- !u!4 &31137175
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 31137173}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0, y: 0, z: -0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1275458513
 GameObject:
   m_ObjectHideFlags: 0
@@ -130,7 +179,7 @@ GameObject:
   - component: {fileID: 1275458514}
   - component: {fileID: 1275458515}
   m_Layer: 0
-  m_Name: Quadrant
+  m_Name: GameManger
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -160,12 +209,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 1275458513}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fb6ac062b719b2b4c8740a69761d5b8a, type: 3}
+  m_Script: {fileID: 11500000, guid: 38c733ce574a3614987b4233d2a89f35, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  minSuns: 1
-  maxSuns: 1
-  sunPrefab: {fileID: 1012220126648347082, guid: 0213eaaa630a28040901f22f5eb04f6c, type: 3}
 --- !u!1 &1869843953
 GameObject:
   m_ObjectHideFlags: 0
@@ -278,4 +324,5 @@ SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 1275458514}
+  - {fileID: 31137175}
   - {fileID: 1869843956}

@@ -9,8 +9,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1344677870890226640}
-  - component: {fileID: 1952295211484088765}
-  - component: {fileID: 5485230507698364210}
+  - component: {fileID: 2162311287035962816}
+  - component: {fileID: 5037286840682920872}
   m_Layer: 0
   m_Name: Planet
   m_TagString: Untagged
@@ -33,7 +33,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1952295211484088765
+--- !u!114 &2162311287035962816
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -42,7 +42,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 9045799790784393480}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 793d7174a22b83d42ac5478328fc8ddf, type: 3}
+  m_Script: {fileID: 11500000, guid: e8661c9f2e7fba340bdf90734dd4d317, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   minRadius: 10000
@@ -50,7 +50,7 @@ MonoBehaviour:
   minOrbitingBodies: 0
   maxOrbitingBodies: 0
   orbitingBodyPrefab: {fileID: 7752022627351078627, guid: 0acbedf4c52101b4192b04efa9925e5d, type: 3}
---- !u!114 &5485230507698364210
+--- !u!114 &5037286840682920872
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -62,6 +62,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a5f52f9e8b49d9d4397f69ec1f3d9379, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  settings: {fileID: 11400000, guid: c759b34cbab6f9342a4564503cd9cdb0, type: 2}
+  chunkResolution: 8
+  chunkPrefab: {fileID: 2073702629757266884, guid: 2e55f67683ea68f4dadfe5ea3b591d6a, type: 3}
   terrainShader: {fileID: 7200000, guid: 78648c9dbf7d3cd46b6990ad58da3fa7, type: 3}
   LODShader: {fileID: 7200000, guid: 982fa5b46cf4b284aa1f60d9faf80014, type: 3}

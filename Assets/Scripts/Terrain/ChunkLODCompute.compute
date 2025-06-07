@@ -59,16 +59,16 @@ float3 project(float3 p)
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
     // bounds check
-    if (id.x >= (uint) numChunks) {
+    if (id.x >= (uint) numChunks)
         return;
-    }
     
     // calculates the screen ratio of the chunk based on the camera distance
     float3 center = project(chunks[id.x].origin + (.5 * chunks[id.x].xAxis) + (.5 * chunks[id.x].yAxis)) * radius;
-    float dist = distance(cameraPosition, chunkGlobalPosition + center);
+    float dist = length(cameraPosition - (chunkGlobalPosition + center));
     float size = length(chunks[id.x].xAxis) * radius;
     float ratio = size / dist;
     
+    // applies falloff formula
     float blend = saturate((dist - maxDetailThreshold) / (falloffDistance));
     ratio = pow(ratio, lerp(1.0, falloffPower, blend));
     

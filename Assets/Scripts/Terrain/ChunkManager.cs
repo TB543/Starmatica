@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using UnityEngine;
+using static UnityEditor.Searcher.SearcherWindow.Alignment;
 
 /*
  * a class to manage chunks in the game.
@@ -12,20 +13,21 @@ using UnityEngine;
 public class ChunkManager : MonoBehaviour
 {
     // fields set in the Unity editor
-    [SerializeField] ChunkSettings settings;
+    [SerializeField] GameObject chunkPrefab;
     [SerializeField] ComputeShader terrainShader;
     [SerializeField] ComputeShader LODShader;
 
-    // fields for the chunk manager used by the chunk objects
-    public Body body { get; private set; }
-
-    // various structures used to manage chunks
-    private static Queue<GameObject> gameObjectPool = new Queue<GameObject>();
-    public List<Chunk.Data> allChunkData { get; private set; } = new List<Chunk.Data>();
-    public List<Chunk> allChunks { get; private set; } = new List<Chunk>();
-    public Queue<Chunk> mergeBuffer { get; private set; } = new Queue<Chunk>();
+    // fields for the chunk manager
+    private Body body;
+    private static Queue<GameObject> gameObjPool = new Queue<GameObject>();
+    private List<Chunk.Data> chunksData = new List<Chunk.Data>();
+    private List<Chunk> chunks = new List<Chunk>();
+    private Queue<Chunk> mergeBuffer = new Queue<Chunk>();
     private List<Chunk.Data> dirtyChunks = new List<Chunk.Data>();
     private Queue<Mesh> dirtyMeshs = new Queue<Mesh>();
+
+    // gets the number of chunks the class manages
+    public int chunkCount => chunksData.Count;
 
     /*
      * called before the first frame update, generates 6 chunks for each face of the body.
@@ -37,7 +39,7 @@ public class ChunkManager : MonoBehaviour
         for (int i = 0; i < 6; i++) {
             Vector3 xAxis = new Vector3(faces[i].y, faces[i].z, faces[i].x);
             Vector3 yAxis = Vector3.Cross(faces[i], xAxis);
-            new Chunk(faces[i] - xAxis - yAxis, xAxis * 2, yAxis * 2, this);
+            addChunk(faces[i] - xAxis - yAxis, xAxis * 2, yAxis * 2);
         }
     }
 
@@ -49,144 +51,79 @@ public class ChunkManager : MonoBehaviour
      */
     private void Update()
     {
-        float t = Time.realtimeSinceStartup;
         // merges chunks that can merge
-        foreach (int i in getLODUpdates(0))
-            allChunks[i].merge();
-        clearMergeBuffer();
+        foreach (int i in ChunkShaderAPI.getLODUpdates(LODShader, chunksData, transform.position, body.radius, ChunkShaderAPI.LODMode.merge))
+            chunks[i].merge();
 
-        // splits chunks that can split
-        foreach (int i in getLODUpdates(1))
-            allChunks[i].split();
-
-        updateMesh();
-
-        print((Time.realtimeSinceStartup - t) * 1000);
-    }
-
-    /*
-     * removes all chunks that were merged from their respective lists
-     */
-    private void clearMergeBuffer()
-    {
         // clears the merge buffer
         while (mergeBuffer.Count > 0) {
             Chunk chunk = mergeBuffer.Dequeue();
 
             // updates the data struct
-            Chunk.Data lastData = allChunkData[allChunkData.Count - 1];
-            Chunk lastChunk = allChunks[allChunks.Count - 1];
+            Chunk.Data lastData = chunksData[chunksData.Count - 1];
+            Chunk lastChunk = chunks[chunks.Count - 1];
             lastData.index = chunk.data.index;
             lastChunk.data = lastData;
 
             // updates the struct stored in the manager chunk lists
-            allChunkData[chunk.data.index] = lastData;
-            allChunks[chunk.data.index] = lastChunk;
-            allChunkData.RemoveAt(allChunkData.Count - 1);
-            allChunks.RemoveAt(allChunks.Count - 1);
+            chunksData[chunk.data.index] = lastData;
+            chunks[chunk.data.index] = lastChunk;
+            chunksData.RemoveAt(chunksData.Count - 1);
+            chunks.RemoveAt(chunks.Count - 1);
         }
-    }
 
-    /*
-     * puts all the chunks into a compute shader to filter the only the ones that need LOD updates.
-     * 
-     * @param mode The mode of the LOD update: 0 is for merge checks, 1 is for split checks.
-     * 
-     * @return an array of chunk indexes that need to be updated
-     */
-    private int[] getLODUpdates(int mode)
-    {
-        // prepares the data for the compute shader
-        int[] result = new int[allChunkData.Count - 1];
-        int[] count = { 0 };
-        ComputeBuffer chunksDataBuffer = new ComputeBuffer(allChunkData.Count, Marshal.SizeOf(typeof(Chunk.Data)));
-        ComputeBuffer countBuffer = new ComputeBuffer(1, sizeof(int), ComputeBufferType.Raw);
-        ComputeBuffer resultBuffer = new ComputeBuffer(allChunkData.Count, sizeof(int));
-        chunksDataBuffer.SetData(allChunkData);
-        countBuffer.SetData(count);
-        resultBuffer.SetData(result);
+        // splits chunks that can split
+        foreach (int i in ChunkShaderAPI.getLODUpdates(LODShader, chunksData, transform.position, body.radius, ChunkShaderAPI.LODMode.split))
+            chunks[i].split();
 
-        // loads the compute shader and sets the parameters
-        LODShader.SetBuffer(0, "chunks", chunksDataBuffer);
-        LODShader.SetBuffer(0, "count", countBuffer);
-        LODShader.SetBuffer(0, "result", resultBuffer);
-        LODShader.SetInt("mode", mode);
-        LODShader.SetInt("numChunks",  allChunkData.Count);
-        LODShader.SetVector("cameraPosition", Camera.main.transform.position);
-        LODShader.SetVector("chunkGlobalPosition", transform.position);
-        LODShader.SetFloat("radius", body.radius);
-
-        // runs the shader and collects the results
-        int groups = Mathf.CeilToInt(allChunkData.Count / 64f);
-        LODShader.Dispatch(0, groups, 1, 1);
-        countBuffer.GetData(count);
-        result = new int[count[0]];
-        resultBuffer.GetData(result, 0, 0, count[0]);
-        chunksDataBuffer.Release();
-        countBuffer.Release();
-        resultBuffer.Release();
-        return result;
-    }
-
-    /*
-     * updates the meshes of the dirty chunks by using a compute shader to generate the meshes.
-     * retrieves the data from the compute buffers and sets it to the meshes.
-     * clears the dirty chunks and dirty meshes after updating.
-     */
-    private void updateMesh()
-    {
-        // prepares the compute shader for generating meshes
+        // updates all of the meshes that need to be updated
         if (dirtyChunks.Count == 0) return;
-        int chunkVertexCount = settings.chunkResolution * settings.chunkResolution;
-        int chunkTriangleCount = (settings.chunkResolution - 1) * (settings.chunkResolution - 1) * 6;
-        Vector3[] vertices = new Vector3[chunkVertexCount * dirtyChunks.Count];
-        int[] triangles = new int[chunkTriangleCount * dirtyChunks.Count];
-        ComputeBuffer vertexBuffer = new ComputeBuffer(vertices.Length, sizeof(float) * 3);
-        ComputeBuffer triangleBuffer = new ComputeBuffer(triangles.Length, sizeof(int));
-        ComputeBuffer chunkDataBuffer = new ComputeBuffer(dirtyChunks.Count, Marshal.SizeOf(typeof(Chunk.Data)));
-
-        // sets the data for the compute shader
-        vertexBuffer.SetData(vertices);
-        triangleBuffer.SetData(triangles);
-        chunkDataBuffer.SetData(dirtyChunks);
-        terrainShader.SetBuffer(0, "points", vertexBuffer);
-        terrainShader.SetBuffer(0, "triangles", triangleBuffer);
-        terrainShader.SetBuffer(0, "chunks", chunkDataBuffer);
-        terrainShader.SetInt("detail", settings.chunkResolution);
-        terrainShader.SetInt("numChunks", dirtyChunks.Count);
-        terrainShader.SetFloat("radius", body.radius);
-        terrainShader.SetInt("seed", body.seed);
-
-        // runs the compute shader to generate the meshes
-        int groups = Mathf.CeilToInt(settings.chunkResolution / 8f);
-        terrainShader.Dispatch(0, groups, groups, dirtyChunks.Count);
-        int vertexIndex = 0;
-        int triangleIndex = 0;
-
-        // copies the generated data into the meshes
-        vertices = new Vector3[chunkVertexCount];
-        triangles = new int[chunkTriangleCount];
-        while (dirtyMeshs.Count > 0) {
-
-            // retrieves the data from the compute buffers
-            vertexBuffer.GetData(vertices, 0, vertexIndex, chunkVertexCount);
-            triangleBuffer.GetData(triangles, 0, triangleIndex, chunkTriangleCount);
-            vertexIndex += chunkVertexCount;
-            triangleIndex += chunkTriangleCount;
-
-            // retrieves the mesh from the queue and sets its data
+        foreach (var (vertices, triangles) in ChunkShaderAPI.getMeshUpdates(terrainShader, dirtyChunks, body.radius, body.seed)) {
             Mesh mesh = dirtyMeshs.Dequeue();
             mesh.vertices = vertices;
             mesh.triangles = triangles;
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
         }
+    }
 
-        // releases the compute buffers
-        vertexBuffer.Release();
-        triangleBuffer.Release();
-        chunkDataBuffer.Release();
-        dirtyChunks.Clear();
+    /*
+     * adds a chunk to the chunk manager
+     * 
+     * @param origin the orign of the chuunk
+     * @param xAxis the x axis of the chunk
+     * @param yAxis the y axis of the chunk
+     * 
+     * @return the chunk that was added
+     */
+    public Chunk addChunk(Vector3 origin, Vector3 xAxis, Vector3 yAxis)
+    {
+        Chunk chunk = new Chunk(origin, xAxis, yAxis, this);
+        chunksData.Add(chunk.data);
+        chunks.Add(chunk);
+        return chunk;
+    }
+
+    /*
+     * updates a chunks data
+     * 
+     * @param chunk the chunk whose data to update
+     * @param data the new data for the chunk 
+     */
+    public void modifyData(Chunk chunk, Chunk.Data data)
+    {
+        chunk.data = data;
+        chunksData[chunk.data.index] = data;
+    }
+
+    /*
+     * queues a chunk to be merged to its parent
+     * 
+     * @param chunk the chunk to be merged
+     */
+    public void queueMerge(Chunk chunk)
+    {
+        mergeBuffer.Enqueue(chunk);
     }
 
     /*
@@ -201,14 +138,14 @@ public class ChunkManager : MonoBehaviour
     {
         // if the pool is empty, create a new chunk
         GameObject obj;
-        if (gameObjectPool.Count == 0) {
-            obj = Instantiate(settings.chunkPrefab, body.transform);
+        if (gameObjPool.Count == 0) {
+            obj = Instantiate(chunkPrefab, body.transform);
             obj.GetComponent<MeshFilter>().mesh.Clear();
         }
 
         // remove the chunk from the pool and activate it
         else {
-            obj = gameObjectPool.Dequeue();
+            obj = gameObjPool.Dequeue();
             obj.transform.SetParent(body.transform, false);
             obj.SetActive(true);
         }
@@ -230,6 +167,6 @@ public class ChunkManager : MonoBehaviour
         if (obj == null) return;
         obj.SetActive(false);
         obj.GetComponent<MeshFilter>().mesh.Clear();
-        gameObjectPool.Enqueue(obj);
+        gameObjPool.Enqueue(obj);
     }
 }
