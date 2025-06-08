@@ -1,7 +1,5 @@
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
 using UnityEngine;
-using static UnityEditor.Searcher.SearcherWindow.Alignment;
 
 /*
  * a class to manage chunks in the game.
@@ -25,6 +23,7 @@ public class ChunkManager : MonoBehaviour
     private Queue<Chunk> mergeBuffer = new Queue<Chunk>();
     private List<Chunk.Data> dirtyChunks = new List<Chunk.Data>();
     private Queue<Mesh> dirtyMeshs = new Queue<Mesh>();
+    private const string SHADER_RADIUS_PROPERTY = "_Radius";
 
     // gets the number of chunks the class manages
     public int chunkCount => chunksData.Count;
@@ -34,7 +33,12 @@ public class ChunkManager : MonoBehaviour
      */
     private void Start()
     {
+        // sets fields
         body = GetComponent<Body>();
+        Material material = chunkPrefab.GetComponent<MeshRenderer>().sharedMaterial;
+        material.SetFloat(SHADER_RADIUS_PROPERTY, body.radius);
+
+        // generates faces
         Vector3[] faces = new Vector3[] { Vector3.up, Vector3.down, Vector3.left, Vector3.right, Vector3.forward, Vector3.back };
         for (int i = 0; i < 6; i++) {
             Vector3 xAxis = new Vector3(faces[i].y, faces[i].z, faces[i].x);
