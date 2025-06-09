@@ -3,6 +3,7 @@
 // https://github.com/Auburn/FastNoiseLite
 // Licensed under the MIT License
 
+
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel CSMain
 
@@ -17,19 +18,32 @@ struct ChunkData
     int canMergeChildren; // not used in this shader, used by the LOD shader to determine if the chunk cam merge
 };
 
+struct noiseParamaters
+{
+    int octaves; // how many layers of noise to use - more layers = more detail
+    float frequency; // the zoom level of the noise - lower values = more zoomed out 
+    float lacunarity; // how much to increase the frequency of each layer - lower values = smoother transition between layers
+    float gain; // how much to decrease the contribution of each layer - lower values = smoother looking noise
+    float weight; // how much to decrease the amplitude of each layer - lower values = smoother transitions within the layer
+};
+
 // variables to be passed to the shader
 int detail;
 int numChunks;
 float radius;
 int seed;
 
+// defines seed for masks
+#define SEED_CONTINENTALNESS (seed * 73856093 + 1)
+#define SEED_EROSION         (seed * 19349663 + 2)
+
 // variabables to be used by terrain generation
-static const int octaves = 5; // how many layers of noise to use - more layers = more detail
-static const float frequency = 3.0; // the zoom level of the noise - lower values = more zoomed out hills
-static const float lacunarity = 2.0; // how much to increase the frequency of each layer - higher values = closer 
-static const float gain = 0.45; // how much to decrease the amplitude of each layer - higher values = sharper 
-static const float amplitude = 500.0; // how much to scale the height of the terrain - higher values = taller 
-static const float weight = 0.5; // how much to decrease the amplitude of each layer - lower values = smoother transition ie smoother plains, exaggerated mountains
+static const float amplitude = 5; // percentage of max terrain height relative to planet radius
+static const noiseParamaters continentalnessParamaters = { 2, .0001, 2, 0.5, 0.2 };
+static const noiseParamaters erosionParamaters = { 6, .0002, 2.2, 0.45, 0.8 };
+static const noiseParamaters heightParamaters = { 6, .001, 2.0, .75, 1.0 };
+noiseParamaters globalNoiseParamaters;
+int globalNoiseSeed;
 
 // buffers to be used by the shader
 RWStructuredBuffer<float3> points;
@@ -75,7 +89,7 @@ float3 project(float3 p)
     float y = p.y * sqrt(1 - (z2 / 2) - (x2 / 2) + ((z2 * x2) / 3));
     float z = p.z * sqrt(1 - (x2 / 2) - (y2 / 2) + ((x2 * y2) / 3));
             
-    return normalize(float3(x, y, z));
+    return normalize(float3(x, y, z)) * radius;
 }
 
 /*
@@ -86,7 +100,7 @@ float3 project(float3 p)
 */
 float3 transform(float3 p)
 {
-    p *= frequency;
+    p *= globalNoiseParamaters.frequency;
     float r = (p.x + p.y + p.z) * (2.0 / 3.0);
     return float3(r - p.x, r - p.y, r - p.z);
 }
@@ -98,10 +112,15 @@ float3 transform(float3 p)
 */
 float bounding()
 {
-    float absGain = abs(gain);
+    float absGain = abs(globalNoiseParamaters.gain);
     float amp = absGain;
     float ampFractal = 1.0;
-    for (int i = 1; i < octaves; i++)
+    
+    if (globalNoiseParamaters.octaves == 2)
+        return 1 / (ampFractal + amp);
+    
+    [loop]
+    for (int i = 1; i < globalNoiseParamaters.octaves; i++)
     {
         ampFractal += amp;
         amp *= absGain;
@@ -112,9 +131,9 @@ float bounding()
 /*
 * generates a hash value based on the seed and coordinates.
 */
-float GradCoord(int seed, int xPrimed, int yPrimed, int zPrimed, float xd, float yd, float zd)
+float GradCoord(int hash, int xPrimed, int yPrimed, int zPrimed, float xd, float yd, float zd)
 {
-    int hash = seed ^ xPrimed ^ yPrimed ^ zPrimed;
+    hash = hash ^ xPrimed ^ yPrimed ^ zPrimed;
     hash *= 0x27d4eb2d;
     hash ^= hash >> 15;
     hash &= 63 << 2;
@@ -155,6 +174,7 @@ float getNoise(int simplexSeed, float3 p)
     float value = 0;
     float a = (0.6f - x0 * x0) - (y0 * y0 + z0 * z0);
 
+    [unroll(2)]
     for (int l = 0;; l++)
     {
         if (a > 0)
@@ -225,18 +245,20 @@ float getNoise(int simplexSeed, float3 p)
 */
 float fractialFBM(float3 p)
 {
-    int fractalSeed = seed;
+    p = transform(p);
+    int fractalSeed = globalNoiseSeed;
     float sum = 0;
     float amp = bounding();
 
-    for (int i = 0; i < octaves; i++)
+    [loop]
+    for (int i = 0; i < globalNoiseParamaters.octaves; i++)
     {
         float noise = getNoise(fractalSeed++, p);
         sum += noise * amp;
-        amp *= lerp(1.0, (noise + 1) * 0.5, weight);
+        amp *= lerp(1.0, (noise + 1) * 0.5, globalNoiseParamaters.weight);
 
-        p *= lacunarity;
-        amp *= gain;
+        p *= globalNoiseParamaters.lacunarity;
+        amp *= globalNoiseParamaters.gain;
     }
 
     return sum;
@@ -260,9 +282,32 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     int triangleIndex = ((id.x + id.y * (uint) (detail - 1)) * 6) + (id.z * (detail - 1) * (detail - 1) * 6);
     float3 p = chunks[id.z].origin + (id.x * chunks[id.z].xAxis / (detail - 1)) + (id.y * chunks[id.z].yAxis / (detail - 1));
     p = project(p);
-    points[globalVertexIndex] = p * (radius + (fractialFBM(transform(p)) * amplitude));
+    
+    // gets the height value
+    globalNoiseParamaters = heightParamaters;
+    globalNoiseSeed = seed;
+    float height = fractialFBM(p) * 0.5 + 0.5;
+    
+    // gets continental mask
+    globalNoiseParamaters = continentalnessParamaters;
+    globalNoiseSeed = SEED_CONTINENTALNESS;
+    float continentalness = fractialFBM(p) * 0.5 + 0.5;
+    
+    // gets erosion mask
+    globalNoiseParamaters = erosionParamaters;
+    globalNoiseSeed = SEED_EROSION;
+    float erosion = fractialFBM(p) * 0.5 + 0.5;
+    
+    float oceanMask = 0.5; // the value for the ocean to start from 0 (no oceans) to 1 (all ocean)
+    float shoreRange = 0.25; // the size of the shore
+    float oceanFloorAmplitude = 0.5; // the amplitude of the ocean floor terrain
+    float oceanBlend = smoothstep(oceanMask - shoreRange, oceanMask + shoreRange, continentalness);
+    float oceanBase = lerp(-1, 0.1, oceanBlend);
+    oceanFloorAmplitude = lerp(oceanFloorAmplitude, 1, oceanBlend);
+    float finalHeight = height * oceanFloorAmplitude + oceanBase;
     
     // calculate the triangle indices for the current vertex
+    points[globalVertexIndex] = p * (1 + (finalHeight * (amplitude / 100)));
     if (id.x < (uint)detail - 1 && id.y < (uint)detail - 1)
     {
         // first triangle

@@ -8,7 +8,7 @@ public class GameManager : MonoBehaviour
 {
     // fields accessible from other scripts
     public static GameManager Instance { get; private set; }
-    public static int? universeSeed;
+    public static int? universeSeed = 0;  // todo set to 0 for testing delete later
 
     // stores quadrant scene name
     private const string QUADRANT_SCENE_NAME = "Quadrant";
@@ -36,6 +36,8 @@ public class GameManager : MonoBehaviour
      * generates a random number based on the given values for the
      * universe seed and loaded quadrent coordinates
      * using the FNV-1a hash algorithm and loads the quadrent with the seed
+     * 
+     * @param quadrantCoords the quadrant to load
      */
     public static void loadQuadrent(Vector2Int quadrantCoords)
     {

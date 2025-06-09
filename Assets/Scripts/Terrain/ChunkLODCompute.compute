@@ -70,7 +70,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     
     // applies falloff formula
     float blend = saturate((dist - maxDetailThreshold) / (falloffDistance));
-    ratio = pow(ratio, lerp(1.0, falloffPower, blend));
+    ratio = pow(abs(ratio), lerp(1.0, falloffPower, blend));
     
     // merge check
     if (mode == 0 && dist >= maxDetailThreshold && chunks[id.x].isLeaf == 0 && chunks[id.x].canMergeChildren == 1 && ratio < LODThreshold) {

@@ -14,9 +14,9 @@ public class ChunkManager : MonoBehaviour
     [SerializeField] GameObject chunkPrefab;
     [SerializeField] ComputeShader terrainShader;
     [SerializeField] ComputeShader LODShader;
+    [SerializeField] Body body;
 
     // fields for the chunk manager
-    private Body body;
     private static Queue<GameObject> gameObjPool = new Queue<GameObject>();
     private List<Chunk.Data> chunksData = new List<Chunk.Data>();
     private List<Chunk> chunks = new List<Chunk>();
@@ -34,7 +34,6 @@ public class ChunkManager : MonoBehaviour
     private void Start()
     {
         // sets fields
-        body = GetComponent<Body>();
         Material material = chunkPrefab.GetComponent<MeshRenderer>().sharedMaterial;
         material.SetFloat(SHADER_RADIUS_PROPERTY, body.radius);
 
@@ -143,14 +142,14 @@ public class ChunkManager : MonoBehaviour
         // if the pool is empty, create a new chunk
         GameObject obj;
         if (gameObjPool.Count == 0) {
-            obj = Instantiate(chunkPrefab, body.transform);
+            obj = Instantiate(chunkPrefab, transform);
             obj.GetComponent<MeshFilter>().mesh.Clear();
         }
 
         // remove the chunk from the pool and activate it
         else {
             obj = gameObjPool.Dequeue();
-            obj.transform.SetParent(body.transform, false);
+            obj.transform.SetParent(transform, false);
             obj.SetActive(true);
         }
 
