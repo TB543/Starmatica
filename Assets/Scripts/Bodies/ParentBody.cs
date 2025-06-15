@@ -19,7 +19,7 @@ public class ParentBody : Body
      */
     protected override void Awake()
     {
-        // initalizes the parent class
+        // initializes the parent class
         base.Awake();
         int orbitingBodyCount = Random.Range(minOrbitingBodies, maxOrbitingBodies + 1);
         orbitingBodies = new GameObject[orbitingBodyCount];

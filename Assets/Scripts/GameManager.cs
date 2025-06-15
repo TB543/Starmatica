@@ -28,18 +28,18 @@ public class GameManager : MonoBehaviour
         else {
             Instance = this;
             DontDestroyOnLoad(Instance);
-            loadQuadrent(Vector2Int.zero);  // todo this is for starting game without menu scene, delete later
+            loadQuadrant(Vector2Int.zero);  // todo this is for starting game without menu scene, delete later
         }
     }
 
     /*
      * generates a random number based on the given values for the
-     * universe seed and loaded quadrent coordinates
-     * using the FNV-1a hash algorithm and loads the quadrent with the seed
+     * universe seed and loaded quadrant coordinates
+     * using the FNV-1a hash algorithm and loads the quadrant with the seed
      * 
      * @param quadrantCoords the quadrant to load
      */
-    public static void loadQuadrent(Vector2Int quadrantCoords)
+    public static void loadQuadrant(Vector2Int quadrantCoords)
     {
         // ensures integer overflow is not checked
         unchecked {

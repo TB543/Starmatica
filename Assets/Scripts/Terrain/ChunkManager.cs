@@ -12,17 +12,21 @@ public class ChunkManager : MonoBehaviour
 {
     // fields set in the Unity editor
     [SerializeField] GameObject chunkPrefab;
-    [SerializeField] ComputeShader terrainShader;
-    [SerializeField] ComputeShader LODShader;
     [SerializeField] Body body;
+    [SerializeField] ChunkShaderAPI shaderAPI;
 
-    // fields for the chunk manager
+    // reuses game objects
     private static Queue<GameObject> gameObjPool = new Queue<GameObject>();
+
+    // basically same list chunk data list is for communication with shaders
     private List<Chunk.Data> chunksData = new List<Chunk.Data>();
     private List<Chunk> chunks = new List<Chunk>();
+
+    // keeps track of chunks that need to be updated
     private Queue<Chunk> mergeBuffer = new Queue<Chunk>();
     private List<Chunk.Data> dirtyChunks = new List<Chunk.Data>();
     private Queue<Mesh> dirtyMeshs = new Queue<Mesh>();
+
     private const string SHADER_RADIUS_PROPERTY = "_Radius";
 
     // gets the number of chunks the class manages
@@ -55,7 +59,7 @@ public class ChunkManager : MonoBehaviour
     private void Update()
     {
         // merges chunks that can merge
-        foreach (int i in ChunkShaderAPI.getLODUpdates(LODShader, chunksData, transform.position, body.radius, ChunkShaderAPI.LODMode.merge))
+        foreach (int i in shaderAPI.getLODUpdates(chunksData, transform.position, body.radius, ChunkShaderAPI.LODMode.merge))
             chunks[i].merge();
 
         // clears the merge buffer
@@ -76,12 +80,12 @@ public class ChunkManager : MonoBehaviour
         }
 
         // splits chunks that can split
-        foreach (int i in ChunkShaderAPI.getLODUpdates(LODShader, chunksData, transform.position, body.radius, ChunkShaderAPI.LODMode.split))
+        foreach (int i in shaderAPI.getLODUpdates(chunksData, transform.position, body.radius, ChunkShaderAPI.LODMode.split))
             chunks[i].split();
 
         // updates all of the meshes that need to be updated
         if (dirtyChunks.Count == 0) return;
-        foreach (var (vertices, triangles) in ChunkShaderAPI.getMeshUpdates(terrainShader, dirtyChunks, body.radius, body.seed)) {
+        foreach (var (vertices, triangles) in shaderAPI.getMeshUpdates(dirtyChunks, body.radius, body.seed)) {
             Mesh mesh = dirtyMeshs.Dequeue();
             mesh.vertices = vertices;
             mesh.triangles = triangles;
@@ -93,7 +97,7 @@ public class ChunkManager : MonoBehaviour
     /*
      * adds a chunk to the chunk manager
      * 
-     * @param origin the orign of the chuunk
+     * @param origin the origin of the chunk
      * @param xAxis the x axis of the chunk
      * @param yAxis the y axis of the chunk
      * 

@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /*
- * a class to handle dynamic chunk spliting with quadtree LOD (Level of Detail) for a terrain system.
+ * a class to handle dynamic chunk spiting with quad-tree LOD (Level of Detail) for a terrain system.
  */
 public class Chunk
 {
@@ -10,7 +10,7 @@ public class Chunk
         public Vector3 origin;  // on the unit cube
         public Vector3 xAxis;  // magnitude is the size of the chunk on the unit cube
         public Vector3 yAxis;
-        public int index;  // index of the chunk in the chunk manager
+        public int index;  // index of the chunk in the chunk manager all chunks list
         public int isLeaf; // 0 for false 1 for true
         public int canMergeChildren; // 0 for false 1 for true
     }

@@ -1,0 +1,52 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+#include "Includes/Utils.hlsl"
+#include "Includes/Terrain.hlsl"
+
+// variables to be passed to the shader
+int detail;
+int numChunks;
+float planetRadius;
+int seed;
+float terrainAmplitude;
+
+// buffers to be used by the shader
+RWStructuredBuffer<float3> points;
+RWStructuredBuffer<int> triangles;
+RWStructuredBuffer<ChunkData> chunks;
+
+/*
+* The main compute shader function that generates points on the sphere.
+*
+* @param id The thread ID, which determines the position of the point to be generated.
+*/
+[numthreads(8, 8, 1)]
+void CSMain(uint3 id : SV_DispatchThreadID)
+{   
+    // Ensure the thread ID is within the bounds of the detail level
+    if (id.x >= (uint) detail || id.y >= (uint) detail || id.z >= (uint) numChunks)
+        return;
+    
+    // Calculate the indices and point position based on the thread ID
+    int localVertexIndex = (id.x + id.y * (uint) detail);
+    int globalVertexIndex = localVertexIndex + (id.z * detail * detail);
+    int triangleIndex = ((id.x + id.y * (uint) (detail - 1)) * 6) + (id.z * (detail - 1) * (detail - 1) * 6);
+    float3 p = chunks[id.z].origin + (id.x * chunks[id.z].xAxis / (detail - 1)) + (id.y * chunks[id.z].yAxis / (detail - 1));
+    p = project(p, planetRadius);
+    
+    // calculates vertex position and creates triangles
+    float finalHeight = planetHeight(p, seed);
+    points[globalVertexIndex] = p * (1 + (finalHeight * terrainAmplitude));
+    if (id.x < (uint)detail - 1 && id.y < (uint)detail - 1)
+    {
+        // first triangle
+        triangles[triangleIndex + 0] = localVertexIndex;
+        triangles[triangleIndex + 1] = localVertexIndex + detail + 1;
+        triangles[triangleIndex + 2] = localVertexIndex + detail;
+ 
+         // second triangle 
+        triangles[triangleIndex + 3] = localVertexIndex;
+        triangles[triangleIndex + 4] = localVertexIndex + 1;
+        triangles[triangleIndex + 5] = localVertexIndex + detail + 1;
+    }
+}

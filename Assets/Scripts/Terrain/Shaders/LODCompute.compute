@@ -1,0 +1,59 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+#include "Includes/Utils.hlsl"
+
+// constants
+#define MODE_MERGE 0
+#define MODE_SPLIT 1
+
+// variables to be passed to the shader
+int mode;
+int numChunks;
+float3 cameraPosition;
+float3 planetPosition;
+float planetRadius;
+float maxDetailThreshold;
+float maxChunkSize;
+float LODThreshold;
+float falloffPower;
+float falloffDistance;
+
+// buffers for passing data to/from the shader
+RWStructuredBuffer<ChunkData> chunks;
+RWStructuredBuffer<int> result;
+RWByteAddressBuffer atomicCount; // atomic index count
+
+/*
+* finds all the chunks that need a LOD update
+*/
+[numthreads(64,1,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    // bounds check
+    if (id.x >= (uint) numChunks)
+        return;
+    
+    // calculates the screen ratio of the chunk based on the camera distance
+    float3 center = project(chunks[id.x].origin + (.5 * chunks[id.x].xAxis) + (.5 * chunks[id.x].yAxis), planetRadius);
+    float dist = length(cameraPosition - (planetPosition + center));
+    float size = length(chunks[id.x].xAxis) * planetRadius;
+    float ratio = size / dist;
+    
+    // applies falloff formula
+    float blend = saturate((dist - maxDetailThreshold) / (falloffDistance));
+    ratio = pow(abs(ratio), lerp(1.0, falloffPower, blend));
+    
+    // merge check
+    if (mode == MODE_MERGE && dist >= maxDetailThreshold && chunks[id.x].isLeaf == 0 && chunks[id.x].canMergeChildren == 1 && ratio < LODThreshold) {
+        uint index;
+        atomicCount.InterlockedAdd(0, 1, index);
+        result[index] = chunks[id.x].index;
+    }
+
+    // split check
+    else if (mode == 1 && chunks[id.x].isLeaf == 1 && (ratio >= LODThreshold || dist < maxDetailThreshold) && size > maxChunkSize) {
+        uint index;
+        atomicCount.InterlockedAdd(0, 1, index);
+        result[index] = chunks[id.x].index;
+    }
+}

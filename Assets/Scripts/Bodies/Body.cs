@@ -20,6 +20,6 @@ public class Body : MonoBehaviour
     {
         seed = Random.Range(int.MinValue, int.MaxValue);
         radius = Random.Range(minRadius, maxRadius);
-        transform.position = new Vector3(0, 0, radius + (radius * .025f) + 50f); // todo moves planet so player is on surface delete later
+        transform.position = new Vector3(0, 0, radius + 100f); // todo moves planet so player is on surface delete later
     }
 }
