@@ -3,8 +3,8 @@
 #include "Includes/Utils.hlsl"
 
 // constants
-#define MODE_MERGE 0
-#define MODE_SPLIT 1
+static const int MODE_MERGE = 0;
+static const int MODE_SPLIT = 1;
 
 // variables to be passed to the shader
 int mode;

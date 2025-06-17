@@ -1,7 +1,7 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel CSMain
 #include "Includes/Utils.hlsl"
-#include "Includes/Terrain.hlsl"
+#include "Includes/TerrainNoise.hlsl"
 
 // variables to be passed to the shader
 int detail;
