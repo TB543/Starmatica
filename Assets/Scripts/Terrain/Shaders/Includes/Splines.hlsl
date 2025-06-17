@@ -1,6 +1,6 @@
 // constants to denote array sizes
-static const int MAX_SPLINE_POINTS = 16;
-static const int MAX_SPLINES = 1;
+static const int MAX_SPLINE_POINTS = 8;
+static const int MAX_SPLINES = 2;
 static const int MAX_NOISE_MAPS = 3;
 
 // struct to represent a spline with points represented by (key, value *XOR* childIndex) and count to
@@ -82,35 +82,33 @@ void pushFrame(float noiseValues[MAX_NOISE_MAPS], Spline splines[MAX_SPLINES], i
 */
 void processFrame(float noiseValues[MAX_NOISE_MAPS], Spline splines[MAX_SPLINES], inout Frame stack[MAX_NOISE_MAPS], inout int top)
 {
-    // attempts to calculate both values
+    // calculates lower value
+    int oldTop = top;
     Spline spline = splines[stack[top].splineIndex];
     if (stack[top].status == GET_BOTH_VALUES) {
-        if (spline.childIndices[stack[top].lowerPointIndex] == -1) {
-            stack[top].lowerValue = spline.values[stack[top].lowerPointIndex];
-            stack[top].higherValue = spline.values[stack[top].lowerPointIndex + 1];
-            top--;
-            return;
-        }
-        
-        // recursive case: find lower value
-        pushFrame(noiseValues, splines, stack, top, spline.childIndices[stack[top].lowerPointIndex]);
-        stack[top - 1].status = SET_LOW_VALUE;
+        if (spline.childIndices[stack[top].lowerPointIndex] != -1)
+            pushFrame(noiseValues, splines, stack, top, spline.childIndices[stack[top].lowerPointIndex]);
+        stack[oldTop].status = SET_LOW_VALUE;
         return;
     }
     
     // sets the frames low value to the previously completed frame
-    Frame completedFrame = stack[top + 1];
     if (stack[top].status == SET_LOW_VALUE) {
-        stack[top].lowerValue = lerp(completedFrame.lowerValue, completedFrame.higherValue, completedFrame.normDist);
+        stack[top].lowerValue = spline.childIndices[stack[top].lowerPointIndex] != -1 ? 
+            lerp(stack[top + 1].lowerValue, stack[top + 1].higherValue, stack[top + 1].normDist) : 
+            spline.values[stack[top].lowerPointIndex];
         
-        // create the frame for the high value
-        pushFrame(noiseValues, splines, stack, top, spline.childIndices[stack[top].lowerPointIndex + 1]);
-        stack[top - 1].status = SET_HIGH_VALUE;
+        // calculates higher value
+        if (spline.childIndices[stack[top].lowerPointIndex + 1] != -1)
+            pushFrame(noiseValues, splines, stack, top, spline.childIndices[stack[top].lowerPointIndex + 1]);
+        stack[oldTop].status = SET_HIGH_VALUE;
         return;
     }
     
     // sets the higher value of the previously completed frame
-    stack[top].higherValue = lerp(completedFrame.lowerValue, completedFrame.higherValue, completedFrame.normDist);
+    stack[top].higherValue = spline.childIndices[stack[top].lowerPointIndex + 1] != -1 ? 
+        lerp(stack[top + 1].lowerValue, stack[top + 1].higherValue, stack[top + 1].normDist) :
+        spline.values[stack[top].lowerPointIndex + 1];
     top--;
 }
 
@@ -148,13 +146,19 @@ static const Spline planetSplines[MAX_SPLINES] =
 {
     // continentalness spline
     {
-        { -1, -.15, -.1, 0, .15, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // keys
-        { -1, -1, -.1, 0, .1, .1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // values
-        { -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // child indices
-        6 // count
+        { -1, -.25, -.15, -.1,  0, .15,  1, 0 }, // keys
+        { -1,   -1,   -1, -.1,  0,  .1, .1, 0 }, // values
+        {  1,    1,   -1,  -1, -1,  -1, -1, 0 }, // child indices
+        7 // count
     },
     
-    // erosion splines
+    // deep ocean erosion spline
+    {
+        { -1,   1, 0, 0, 0, 0, 0, 0 }, // keys
+        { -1, -.5, 0, 0, 0, 0, 0, 0 }, // values
+        { -1,  -1, 0, 0, 0, 0, 0, 0 }, // child indices
+        2 // count
+    }
     
     // peaks and valleys splines
 };

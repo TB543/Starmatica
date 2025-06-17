@@ -24,7 +24,7 @@ float planetHeight(float3 p, int seed)
     
     // creates erosion noise
     fnl_state erosionNoise = fnlCreateState(continentalnessNoise.seed + continentalnessNoise.octaves);
-    erosionNoise.frequency = 0.00005;
+    erosionNoise.frequency = 0.0008;
     erosionNoise.noise_type = FNL_NOISE_OPENSIMPLEX2S;
     erosionNoise.fractal_type = FNL_FRACTAL_FBM;
     erosionNoise.octaves = 4;
